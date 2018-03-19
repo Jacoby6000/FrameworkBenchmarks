@@ -1,6 +1,6 @@
 package http4s.techempower.benchmark.http
 
-import cats.Monad
+import cats.{Foldable, Monad}
 import cats.effect.Effect
 import cats.implicits._
 import http4s.techempower.benchmark.model.Fortune
@@ -31,17 +31,21 @@ final class FortuneHttpEndpoint[F[_]: Effect](
     (Fortune(0, "Additional fortune added at request time.") :: fs)
       .sortBy(_.message)
 
-  @inline private[this] def fortuneTemplate(fs: List[Fortune]): String =
-    s"""<!DOCTYPE html>
+  @inline private[this] def fortuneTemplate(fs: List[Fortune])(implicit G: Foldable[List]): String = {
+    val t = G.foldLeft(fs, new StringBuilder){ (builder, f) =>
+      builder append s"""<tr><td>${f.id}</td><td>${f.message}</td></tr>"""
+    }
+
+    """<!DOCTYPE html>
       |<html>
       |<head><title>Fortunes</title></head>
-      |<body>
-      |<table>
-      |    <tr><th>id</th><th>message</th></tr>
-      |    ${fs.foldLeft("")((s, f) =>
-         s + s"""<tr><td>${f.id}</td><td>${f.message}</td></tr>""")}
-      |</table>
+      |<body><table>
+      |<tr><th>id</th><th>message</th></tr>
+      |""".stripMargin +
+      t +
+    """</table>
       |</body>
-      |</html>
-      |""".stripMargin
+      |</html>""".stripMargin
+  }
+
 }
